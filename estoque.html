@@ -8,27 +8,27 @@
         body {
             font-family: 'Arial', sans-serif;
             margin: 20px;
-            background-color: #f0f4f8; /* Mudança para um fundo mais suave */
+            background-color: #f0f4f8;
             color: #333;
         }
 
         h1, h2 {
             color: #2c3e50;
-            text-align: center; /* Centraliza os títulos */
+            text-align: center;
         }
 
         input[type="text"], input[type="number"] {
             padding: 12px;
-            width: calc(100% - 24px); /* Ajuste para melhor alinhamento */
+            width: calc(100% - 24px);
             margin: 8px 0;
             border: 1px solid #bdc3c7;
             border-radius: 5px;
-            transition: border-color 0.3s; /* Transição suave para foco */
+            transition: border-color 0.3s;
         }
 
         input[type="text"]:focus, input[type="number"]:focus {
-            border-color: #3498db; /* Cor do contorno ao focar */
-            outline: none; /* Remove o contorno padrão */
+            border-color: #3498db;
+            outline: none;
         }
 
         button {
@@ -39,7 +39,7 @@
             border-radius: 5px;
             cursor: pointer;
             margin: 8px 0;
-            transition: background-color 0.3s; /* Transição suave para hover */
+            transition: background-color 0.3s;
         }
 
         button:hover {
@@ -49,9 +49,9 @@
         #estoque {
             margin-top: 20px;
             padding: 15px;
-            background-color: #ffffff; /* Fundo branco para contraste */
+            background-color: #ffffff;
             border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* Sombra leve para destaque */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .item {
@@ -59,12 +59,20 @@
             padding: 10px;
             border: 1px solid #bdc3c7;
             border-radius: 5px;
-            background-color: #ecf0f1; /* Fundo levemente cinza para itens */
-            transition: background-color 0.3s; /* Transição suave ao passar o mouse */
+            background-color: #ecf0f1;
+            transition: background-color 0.3s;
         }
 
         .item:hover {
-            background-color: #dfe6e9; /* Cor de fundo ao passar o mouse */
+            background-color: #dfe6e9;
+        }
+
+        .sell-button {
+            background-color: #e74c3c;
+        }
+
+        .sell-button:hover {
+            background-color: #c0392b;
         }
     </style>
 </head>
@@ -72,13 +80,23 @@
     <h1>Sistema de Estoque</h1>
     <input type="text" id="nomeItem" placeholder="Nome do item" required>
     <input type="number" id="quantidadeItem" placeholder="Quantidade" min="1" required>
-    <button onclick="adicionarItem()">Adicionar Item</button>
+    <input type="number" id="precoCompraItem" placeholder="Preço de compra por unidade" min="0" step="0.01" required>
+    <input type="number" id="precoVendaItem" placeholder="Preço de venda por unidade" min="0" step="0.01" required>
+    <button onclick="adicionarItem()">Adicionar/Atualizar Item</button>
     <button onclick="visualizarEstoque()">Visualizar Estoque</button>
+    <button onclick="adicionarItemDireto('Produto Exemplo', 10, 5.00, 10.00)">Adicionar Produto Exemplo</button>
+    <button onclick="baixarEstoque()">Baixar Estoque como JSON</button>
 
     <div id="estoque"></div>
+    <div id="valorTotal"></div>
+    <div id="valorVendido"></div>
+    <div id="lucroTotal"></div>
 
     <script>
-        // Carrega o estoque do localStorage ou inicializa um objeto vazio
+        let valorTotalEstoque = 0;
+        let valorTotalVendido = 0;
+        let lucroTotal = 0;
+
         let estoque = JSON.parse(localStorage.getItem('estoque')) || {};
 
         function gerarId(nome) {
@@ -88,80 +106,139 @@
         function adicionarItem() {
             const nome = document.getElementById('nomeItem').value.trim();
             const quantidade = parseInt(document.getElementById('quantidadeItem').value);
+            const precoCompra = parseFloat(document.getElementById('precoCompraItem').value);
+            const precoVenda = parseFloat(document.getElementById('precoVendaItem').value);
 
-            if (nome && quantidade > 0) {
+            if (nome && quantidade > 0 && precoCompra >= 0 && precoVenda >= 0) {
                 const id = gerarId(nome);
                 if (estoque[id]) {
-                    estoque[id].quantidade += quantidade; // Aumenta a quantidade se o item já existir
+                    // Atualiza a quantidade e os preços
+                    const quantidadeAntiga = estoque [id].quantidade;
+                    estoque[id].quantidade += quantidade;
+                    estoque[id].precoCompra = precoCompra;
+                    estoque[id].precoVenda = precoVenda;
+
+                    // Atualiza o valor total do estoque
+                    valorTotalEstoque += quantidade * precoCompra;
                 } else {
-                    estoque[id] = { nome, quantidade }; // Adiciona o item se não existir
+                    estoque[id] = { nome, quantidade, precoCompra, precoVenda };
+
+                    // Atualiza o valor total do estoque
+                    valorTotalEstoque += quantidade * precoCompra;
                 }
-                localStorage.setItem('estoque', JSON.stringify(estoque)); // Salva no localStorage
+                localStorage.setItem('estoque', JSON.stringify(estoque));
+
                 document.getElementById('nomeItem').value = '';
                 document.getElementById('quantidadeItem').value = '';
-                alert(`Adicionado ${quantidade} de ${nome}.`);
-            } else {
-                alert('Por favor, preencha o nome do item e a quantidade.');
-            }
-        }
+                document.getElementById('precoCompraItem').value = '';
+                document.getElementById('precoVendaItem').value = '';
 
-        function adicionarQuantidade(id) {
-            const quantidade = parseInt(document.getElementById(`quantidadeAdicionar_${id}`).value);
-            if (quantidade > 0) {
-                estoque[id].quantidade += quantidade; // Aumenta a quantidade do item
-                localStorage.setItem('estoque', JSON.stringify(estoque)); // Atualiza o localStorage
-                visualizarEstoque(); // Atualiza a visualização do estoque
-                alert(`Adicionado ${quantidade} de ${estoque[id].nome}.`);
-            } else {
-                alert('Por favor, insira uma quantidade válida.');
-            }
-        }
-
-        function removerItem(id) {
-            if (estoque[id]) {
-                delete estoque[id]; // Remove o item do estoque
-                localStorage.setItem('estoque', JSON.stringify(estoque)); // Atualiza o localStorage
-                alert(`Item ${estoque[id].nome} removido com sucesso.`);
+                alert(`Item adicionado/Atualizado ao estoque com sucesso!`);
                 visualizarEstoque(); // Atualiza a visualização do estoque
             } else {
-                alert('Item não encontrado.');
+                alert('Preencha todos os campos corretamente!');
             }
         }
 
-        function removerQuantidade(id, quantidade) {
-            if (estoque[id]) {
-                if (quantidade >= estoque[id].quantidade) {
-                    alert(`Item ${estoque[id].nome} removido com sucesso.`);
-                    delete estoque[id]; // Remove o item do estoque se a quantidade a ser removida é igual ou maior
+        function adicionarItemDireto(nome, quantidade, precoCompra, precoVenda) {
+            if (nome && quantidade > 0 && precoCompra >= 0 && precoVenda >= 0) {
+                const id = gerarId(nome);
+                if (estoque[id]) {
+                    estoque[id].quantidade += quantidade;
+                    estoque[id].precoCompra = precoCompra;
+                    estoque[id].precoVenda = precoVenda;
                 } else {
-                    estoque[id].quantidade -= quantidade; // Diminui a quantidade
-                    alert(`Removido ${quantidade} de ${estoque[id].nome}.`);
+                    estoque[id] = { nome, quantidade, precoCompra, precoVenda };
                 }
-                localStorage.setItem('estoque', JSON.stringify(estoque)); // Atualiza o localStorage
+                localStorage.setItem('estoque', JSON.stringify(estoque));
+
+                valorTotalEstoque += quantidade * precoCompra;
+
+                alert(`Item adicionado ao estoque com sucesso!`);
                 visualizarEstoque(); // Atualiza a visualização do estoque
             } else {
-                alert('Item não encontrado.');
+                alert('Preencha todos os campos corretamente!');
             }
+        }
+
+        function venderItem(id) {
+            const quantidadeVender = parseInt(prompt(`Digite a quantidade de ${estoque[id].nome} que deseja vender:`));
+            if (estoque[id]) {
+                if (estoque[id].quantidade <= quantidadeVender) {
+                    delete estoque[id];
+                } else {
+                    estoque[id].quantidade -= quantidadeVender;
+                }
+                localStorage.setItem('estoque', JSON.stringify(estoque));
+
+                valorTotalVendido += quantidadeVender * estoque[id].precoVenda;
+                lucroTotal += quantidadeVender * (estoque[id].precoVenda - estoque[id].precoCompra);
+
+                alert(`Item vendido com sucesso!`);
+                visualizarEstoque(); // Atualiza a visualização do estoque
+            } else {
+                alert('Item não encontrado no estoque!');
+            }
+        }
+
+        function limparEstoque() {
+            estoque = {};
+            localStorage.setItem('estoque', JSON.stringify(estoque));
+
+            valorTotalEstoque = 0;
+            valorTotalVendido = 0;
+            lucroTotal = 0;
+
+            alert('Estoque limpo com sucesso!');
+            visualizarEstoque(); // Atualiza a visualização do estoque
         }
 
         function visualizarEstoque() {
-            const estoqueDiv = document.getElementById('estoque');
-            estoqueDiv.innerHTML = '<h2>Estoque Atual:</h2>';
-            if (Object.keys(estoque).length === 0) {
-                estoqueDiv.innerHTML += '<p>O estoque está vazio.</p>';
+            const estoqueHTML = Object.keys(estoque).map(id => {
+                const item = estoque[id];
+                return `
+                    <div class="item">
+                        <h2>${item.nome}</h2>
+                        <p>Quantidade: ${item.quantidade}</p>
+                        <p>Preço de compra: R$ ${item.precoCompra.toFixed(2)}</p>
+                        <p>Preço de venda: R$ ${item.precoVenda.toFixed(2)}</p>
+                        <button class="sell-button" onclick="venderItem('${id}')">Vender</button>
+                        <button class="sell-button" onclick="excluirItem('${id}')">Excluir</button>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('estoque').innerHTML = estoqueHTML;
+            document.getElementById('valorTotal').innerHTML = `Valor total do estoque: R$ ${valorTotalEstoque.toFixed(2)}`;
+            document.getElementById('valorVendido').innerHTML = `Valor total vendido: R$ ${valorTotalVendido.toFixed(2)}`;
+            document.getElementById('lucroTotal').innerHTML = `Lucro total: R$ ${lucroTotal.toFixed(2)}`;
+        }
+
+        function excluirItem(id) {
+            if (estoque[id]) {
+                delete estoque[id];
+                localStorage.setItem('estoque', JSON.stringify(estoque));
+                alert(`Item excluído do estoque com sucesso!`);
+                visualizarEstoque(); // Atualiza a visualização do estoque
             } else {
-                for (const [id, item] of Object.entries(estoque)) {
-                    estoqueDiv.innerHTML += `
-                        <p>${item .nome}: ${item.quantidade} 
-                        <input type="number" id="quantidadeAdicionar_${id}" placeholder="Adicionar quantidade" min="1">
-                        <button onclick="adicionarQuantidade('${id}')">Adicionar</button>
-                        <input type="number" id="quantidadeRemover_${id}" placeholder="Quantidade a remover" min="1">
-                        <button onclick="removerQuantidade('${id}', parseInt(document.getElementById('quantidadeRemover_${ id}').value))">Remover</button>
-                        <button onclick="removerItem('${id}')">Excluir</button></p>`;
-                }
-                
+                alert('Item não encontrado no estoque!');
             }
         }
+
+        function baixarEstoque() {
+            const dataStr = JSON.stringify(estoque, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'estoque.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        visualizarEstoque(); // Inicializa a visualização do estoque
     </script>
 </body>
 </html>
